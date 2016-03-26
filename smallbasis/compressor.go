@@ -233,10 +233,13 @@ func (c *Compressor) blocksToImage(w, h int, blocks [][]float64) image.Image {
 						continue
 					}
 					blockIdx := x + y*c.blockSize
+					rVal := math.Min(math.Max(colorBlocks[0][blockIdx], 0), 1)
+					gVal := math.Min(math.Max(colorBlocks[1][blockIdx], 0), 1)
+					bVal := math.Min(math.Max(colorBlocks[2][blockIdx], 0), 1)
 					px := color.RGBA{
-						R: uint8(colorBlocks[0][blockIdx] * 0xff),
-						G: uint8(colorBlocks[1][blockIdx] * 0xff),
-						B: uint8(colorBlocks[2][blockIdx] * 0xff),
+						R: uint8(rVal * 0xff),
+						G: uint8(gVal * 0xff),
+						B: uint8(bVal * 0xff),
 						A: 0xff,
 					}
 					res.Set(x+col*c.blockSize, y+row*c.blockSize, px)
