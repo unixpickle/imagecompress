@@ -202,7 +202,12 @@ func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
 					}
 					px := i.At(x+startX, y+startY)
 					r, g, b, _ := px.RGBA()
-					idx := x + y*c.blockSize
+					idx := y * c.blockSize
+					if y%2 == 0 {
+						idx += x
+					} else {
+						idx += c.blockSize - (x + 1)
+					}
 					blocks[0][idx] = float64(r) / 0xffff
 					blocks[1][idx] = float64(g) / 0xffff
 					blocks[2][idx] = float64(b) / 0xffff
@@ -232,10 +237,15 @@ func (c *Compressor) blocksToImage(w, h int, blocks [][]float64) image.Image {
 					if x+col*c.blockSize >= w {
 						continue
 					}
-					blockIdx := x + y*c.blockSize
-					rVal := math.Min(math.Max(colorBlocks[0][blockIdx], 0), 1)
-					gVal := math.Min(math.Max(colorBlocks[1][blockIdx], 0), 1)
-					bVal := math.Min(math.Max(colorBlocks[2][blockIdx], 0), 1)
+					pxIdx := y * c.blockSize
+					if y%2 == 0 {
+						pxIdx += x
+					} else {
+						pxIdx += c.blockSize - (x + 1)
+					}
+					rVal := math.Min(math.Max(colorBlocks[0][pxIdx], 0), 1)
+					gVal := math.Min(math.Max(colorBlocks[1][pxIdx], 0), 1)
+					bVal := math.Min(math.Max(colorBlocks[2][pxIdx], 0), 1)
 					px := color.RGBA{
 						R: uint8(rVal * 0xff),
 						G: uint8(gVal * 0xff),

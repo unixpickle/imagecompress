@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image"
+	_ "image/jpeg"
 	"image/png"
 	"io/ioutil"
 	"os"
