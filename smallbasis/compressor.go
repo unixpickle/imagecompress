@@ -136,7 +136,7 @@ func (c *Compressor) basisVectors(indices []int) []ludecomp.Vector {
 	for i, x := range indices {
 		vec := make(ludecomp.Vector, c.blockSize*c.blockSize)
 		for j := range vec {
-			vec[j] = c.basis.Get(x, j)
+			vec[j] = c.basis.Get(j, x)
 		}
 		basisVectors[i] = vec
 	}
@@ -200,7 +200,7 @@ func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
 					if x+startX >= i.Bounds().Max.X {
 						continue
 					}
-					px := i.At(x, y)
+					px := i.At(x+startX, y+startY)
 					r, g, b, _ := px.RGBA()
 					idx := x + y*c.blockSize
 					blocks[0][idx] = float64(r) / 0xffff

@@ -111,7 +111,10 @@ func (i *compressedImage) Encode() []byte {
 
 	for _, block := range i.Blocks {
 		for _, blockValue := range block {
-			num := roundFloat(0xff * ((blockValue / maxCoeff) + maxCoeff) / 2)
+			blockValue += maxCoeff
+			blockValue /= maxCoeff * 2
+			blockValue *= 0xff
+			num := roundFloat(blockValue)
 			buf.WriteByte(byte(num))
 		}
 	}
@@ -230,7 +233,8 @@ func (i *compressedImage) decodeNextBlock(maxCoeff float64, r *bytes.Buffer) err
 		if b, err := r.ReadByte(); err != nil {
 			return errors.New("could not read coefficient data")
 		} else {
-			val := float64(uint8(b)) / 0xff
+			val := float64(uint8(b))
+			val /= 0xff
 			val *= maxCoeff * 2
 			val -= maxCoeff
 			block[k] = val

@@ -11,7 +11,7 @@ import (
 func BasisMatrix(size int) *ludecomp.Matrix {
 	res := ludecomp.NewMatrix(size)
 	for i := 0; i < size/2; i++ {
-		freq := 2 * math.Pi / float64(size)
+		freq := float64(i+1) * 2 * math.Pi / float64(size)
 		for j := 0; j < size; j++ {
 			argument := float64(j)
 			res.Set(j, 2*i, math.Cos(argument*freq))
