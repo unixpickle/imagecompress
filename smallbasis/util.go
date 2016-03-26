@@ -13,13 +13,13 @@ func linearCombination(vecs []ludecomp.Vector, coeffs []float64) []float64 {
 	}
 
 	res := make([]float64, len(vecs[0]))
-	tempSumList := make([]float64, len(coeffs))
 
 	for comp := range res {
+		s := kahan.NewSummer64()
 		for i, vec := range vecs {
-			tempSumList[i] = coeffs[i] * vec[comp]
+			s.Add(coeffs[i] * vec[comp])
 		}
-		res[comp] = kahan.Sum64(tempSumList)
+		res[comp] = s.Sum()
 	}
 
 	return res
