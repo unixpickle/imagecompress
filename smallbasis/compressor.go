@@ -1,7 +1,9 @@
 package smallbasis
 
 import (
+	"errors"
 	"image"
+	"image/color"
 	"math"
 	"sort"
 
@@ -82,14 +84,7 @@ func (c *Compressor) Compress(i image.Image) []byte {
 	copy(usedBasis, r.BasisIndices)
 	sort.Ints(usedBasis)
 
-	basisVectors := make([]ludecomp.Vector, len(usedBasis))
-	for i, x := range usedBasis {
-		vec := make(ludecomp.Vector, c.blockSize*c.blockSize)
-		for j := range vec {
-			vec[j] = c.basis.Get(x, j)
-		}
-		basisVectors[i] = vec
-	}
+	basisVectors := c.basisVectors(usedBasis)
 
 	projBlocks := c.projectionBlocks(basisVectors, blocks)
 
@@ -101,6 +96,51 @@ func (c *Compressor) Compress(i image.Image) []byte {
 		Height:    i.Bounds().Dy(),
 	}
 	return compressed.Encode()
+}
+
+// Decompress decodes the binary data of a compressed image,
+// turning it back into a usable image.
+func (c *Compressor) Decompress(d []byte) (image.Image, error) {
+	ci, err := decodeCompressedImage(d, c.blockSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// decodeCompressedImage does not verify the basis list.
+	// We must verify the basis to prevent a possible panic().
+	if !sort.IntsAreSorted(ci.UsedBasis) {
+		return nil, errors.New("unsorted basis vectors in decoded image")
+	}
+	for _, x := range ci.UsedBasis {
+		if x >= c.basis.N || x < 0 {
+			return nil, errors.New("overflowing basis vectors in decoded image")
+		}
+	}
+
+	basisVectors := c.basisVectors(ci.UsedBasis)
+
+	blocks := make([][]float64, len(ci.Blocks))
+	for i, encodedBlock := range ci.Blocks {
+		if len(basisVectors) > 0 {
+			blocks[i] = linearCombination(basisVectors, encodedBlock)
+		} else {
+			blocks[i] = make([]float64, c.blockSize*c.blockSize)
+		}
+	}
+
+	return c.blocksToImage(ci.Width, ci.Height, blocks), nil
+}
+
+func (c *Compressor) basisVectors(indices []int) []ludecomp.Vector {
+	basisVectors := make([]ludecomp.Vector, len(indices))
+	for i, x := range indices {
+		vec := make(ludecomp.Vector, c.blockSize*c.blockSize)
+		for j := range vec {
+			vec[j] = c.basis.Get(x, j)
+		}
+		basisVectors[i] = vec
+	}
+	return basisVectors
 }
 
 // projectionBlocks projects the blocks onto a pruned basis.
@@ -141,15 +181,7 @@ func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float
 }
 
 func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
-	numCols := i.Bounds().Dx() / c.blockSize
-	if i.Bounds().Dx()%c.blockSize != 0 {
-		numCols++
-	}
-
-	numRows := i.Bounds().Dy() / c.blockSize
-	if i.Bounds().Dy()%c.blockSize != 0 {
-		numRows++
-	}
+	numRows, numCols := c.blockCounts(i.Bounds())
 
 	res := make([]ludecomp.Vector, 3*numRows*numCols)
 	for row := 0; row < numRows; row++ {
@@ -181,6 +213,53 @@ func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
 	}
 
 	return res
+}
+
+func (c *Compressor) blocksToImage(w, h int, blocks [][]float64) image.Image {
+	res := image.NewRGBA(image.Rect(0, 0, w, h))
+	rows, cols := c.blockCounts(res.Bounds())
+
+	blockIdx := 0
+	for row := 0; row < rows; row++ {
+		for col := 0; col < cols; col++ {
+			colorBlocks := blocks[blockIdx : blockIdx+3]
+			blockIdx += 3
+			for y := 0; y < c.blockSize; y++ {
+				if y+row*c.blockSize >= h {
+					continue
+				}
+				for x := 0; x < c.blockSize; x++ {
+					if x+col*c.blockSize >= w {
+						continue
+					}
+					blockIdx := x + y*c.blockSize
+					px := color.RGBA{
+						R: uint8(colorBlocks[0][blockIdx] * 0xff),
+						G: uint8(colorBlocks[1][blockIdx] * 0xff),
+						B: uint8(colorBlocks[2][blockIdx] * 0xff),
+						A: 0xff,
+					}
+					res.Set(x+col*c.blockSize, y+row*c.blockSize, px)
+				}
+			}
+		}
+	}
+
+	return res
+}
+
+func (c *Compressor) blockCounts(bounds image.Rectangle) (rows, cols int) {
+	cols = bounds.Dx() / c.blockSize
+	if bounds.Dx()%c.blockSize != 0 {
+		cols++
+	}
+
+	rows = bounds.Dy() / c.blockSize
+	if bounds.Dy()%c.blockSize != 0 {
+		rows++
+	}
+
+	return
 }
 
 type RankedVectors struct {

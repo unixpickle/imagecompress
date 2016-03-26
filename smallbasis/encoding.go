@@ -239,7 +239,3 @@ func (i *compressedImage) decodeNextBlock(maxCoeff float64, r *bytes.Buffer) err
 	i.Blocks = append(i.Blocks, block)
 	return nil
 }
-
-func roundFloat(f float64) int {
-	return int(math.Floor(f + 0.5))
-}
