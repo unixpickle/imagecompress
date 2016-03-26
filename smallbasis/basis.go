@@ -9,10 +9,7 @@ import (
 // BasisMatrix generates a column matrix for
 // the standard image basis elements.
 func BasisMatrix(size int) *ludecomp.Matrix {
-	res := &ludecomp.Matrix{
-		N: size,
-		V: make([]float64, size*size),
-	}
+	res := ludecomp.NewMatrix(size)
 	for i := 0; i < size/2; i++ {
 		freq := 2 * math.Pi / float64(size)
 		for j := 0; j < size; j++ {
