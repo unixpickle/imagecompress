@@ -80,7 +80,7 @@ func decodeCompressedImage(data []byte, blockSize int) (*compressedImage, error)
 	if res.Height%blockSize != 0 {
 		vertBlockCount++
 	}
-	for i := 0; i < horizBlockCount*vertBlockCount; i++ {
+	for i := 0; i < horizBlockCount*vertBlockCount*3; i++ {
 		if err := res.decodeNextBlock(maxCoeff, buf); err != nil {
 			return nil, err
 		}

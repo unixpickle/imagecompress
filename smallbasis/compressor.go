@@ -10,7 +10,7 @@ import (
 	"github.com/unixpickle/num-analysis/ludecomp"
 )
 
-const DefaultBlockSize = 64
+const DefaultBlockSize = 16
 
 // A Compressor compresses and decompresses images by changing
 // each block of an image into a different linear basis and
@@ -183,7 +183,7 @@ func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float
 func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
 	numRows, numCols := c.blockCounts(i.Bounds())
 
-	res := make([]ludecomp.Vector, 3*numRows*numCols)
+	res := make([]ludecomp.Vector, 0, 3*numRows*numCols)
 	for row := 0; row < numRows; row++ {
 		for col := 0; col < numCols; col++ {
 			startX := i.Bounds().Min.X + col*c.blockSize
