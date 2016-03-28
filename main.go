@@ -23,6 +23,9 @@ var Compressors = map[string]CompressorGen{
 	"smallbasis": func(q float64) Compressor {
 		return smallbasis.NewCompressor(q)
 	},
+	"ortho16": func(q float64) Compressor {
+		return smallbasis.NewCompressorBasis(q, 16, smallbasis.OrthoBasis(16*16))
+	},
 }
 
 func main() {
@@ -100,7 +103,8 @@ func dieUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s <compress> <compressor> <quality> <in.png> <out>\n"+
 		"       %s <decompress> <compressor> <in> <out.png>\n\n"+
 		"Compressors:\n"+
-		" smallbasis       algebraic basis pruning",
+		" smallbasis       algebraic basis pruning\n"+
+		" ortho16          prune a recursive orthogonal basis",
 		os.Args[0], os.Args[0])
 	os.Exit(1)
 }
