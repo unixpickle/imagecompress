@@ -4,10 +4,10 @@ import (
 	"math"
 
 	"github.com/unixpickle/num-analysis/kahan"
-	"github.com/unixpickle/num-analysis/ludecomp"
+	"github.com/unixpickle/num-analysis/linalg"
 )
 
-func linearCombination(vecs []ludecomp.Vector, coeffs []float64) []float64 {
+func linearCombination(vecs []linalg.Vector, coeffs []float64) []float64 {
 	if len(vecs) == 0 {
 		return nil
 	}

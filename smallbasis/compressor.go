@@ -7,7 +7,9 @@ import (
 	"math"
 	"sort"
 
-	"github.com/unixpickle/num-analysis/ludecomp"
+	"github.com/unixpickle/num-analysis/linalg"
+	"github.com/unixpickle/num-analysis/linalg/cholesky"
+	"github.com/unixpickle/num-analysis/linalg/ludecomp"
 )
 
 const DefaultBlockSize = 16
@@ -17,7 +19,7 @@ const DefaultBlockSize = 16
 // then removing basis vectors that aren't used very heavily.
 type Compressor struct {
 	quality float64
-	basis   *ludecomp.Matrix
+	basis   *linalg.Matrix
 	basisLU *ludecomp.LU
 
 	blockSize int
@@ -38,7 +40,10 @@ type Compressor struct {
 // The basis matrix is a matrix of column vectors.
 // A basis will work best if its columns are normalized,
 // but it needn't be orthonormal.
-func NewCompressorBasis(quality float64, blockSize int, basis *ludecomp.Matrix) *Compressor {
+func NewCompressorBasis(quality float64, blockSize int, basis *linalg.Matrix) *Compressor {
+	if !basis.Square() {
+		panic("basis must be square")
+	}
 	return &Compressor{
 		quality:   quality,
 		basis:     basis,
@@ -112,7 +117,7 @@ func (c *Compressor) Decompress(d []byte) (image.Image, error) {
 		return nil, errors.New("unsorted basis vectors in decoded image")
 	}
 	for _, x := range ci.UsedBasis {
-		if x >= c.basis.N || x < 0 {
+		if x >= c.basis.Rows || x < 0 {
 			return nil, errors.New("overflowing basis vectors in decoded image")
 		}
 	}
@@ -131,10 +136,10 @@ func (c *Compressor) Decompress(d []byte) (image.Image, error) {
 	return c.blocksToImage(ci.Width, ci.Height, blocks), nil
 }
 
-func (c *Compressor) basisVectors(indices []int) []ludecomp.Vector {
-	basisVectors := make([]ludecomp.Vector, len(indices))
+func (c *Compressor) basisVectors(indices []int) []linalg.Vector {
+	basisVectors := make([]linalg.Vector, len(indices))
 	for i, x := range indices {
-		vec := make(ludecomp.Vector, c.blockSize*c.blockSize)
+		vec := make(linalg.Vector, c.blockSize*c.blockSize)
 		for j := range vec {
 			vec[j] = c.basis.Get(j, x)
 		}
@@ -148,7 +153,7 @@ func (c *Compressor) basisVectors(indices []int) []ludecomp.Vector {
 // combination of basis elements that get as close to each
 // original block as possible (i.e. that arrive at an
 // orthogonal projection).
-func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float64 {
+func (c *Compressor) projectionBlocks(basis, blocks []linalg.Vector) [][]float64 {
 	// If we have an equation Ax=b where A is the matrix with
 	// our pruned basis for columns, then we would like to find
 	// the x which minimizes the magnitude ||Ax-b||. To do this,
@@ -156,7 +161,7 @@ func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float
 	// (A^T)Ax = (A^T)b.
 
 	// projLeft corresponds to (A^T)A in the above explanation.
-	projLeft := ludecomp.NewMatrix(len(basis))
+	projLeft := linalg.NewMatrix(len(basis), len(basis))
 	for i, v := range basis {
 		for j, u := range basis {
 			dot := v.Dot(u)
@@ -164,12 +169,12 @@ func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float
 		}
 	}
 
-	projLeftLU := ludecomp.Decompose(projLeft)
+	projLeftLU := cholesky.Decompose(projLeft)
 
 	res := make([][]float64, len(blocks))
 	for i, block := range blocks {
 		// blockDot corresponds to (A^T)b in the explanation above.
-		blockDot := make(ludecomp.Vector, len(basis))
+		blockDot := make(linalg.Vector, len(basis))
 		for k := range blockDot {
 			blockDot[k] = basis[k].Dot(block)
 		}
@@ -180,17 +185,17 @@ func (c *Compressor) projectionBlocks(basis, blocks []ludecomp.Vector) [][]float
 	return res
 }
 
-func (c *Compressor) blocksInImage(i image.Image) []ludecomp.Vector {
+func (c *Compressor) blocksInImage(i image.Image) []linalg.Vector {
 	numRows, numCols := c.blockCounts(i.Bounds())
 
-	res := make([]ludecomp.Vector, 0, 3*numRows*numCols)
+	res := make([]linalg.Vector, 0, 3*numRows*numCols)
 	for row := 0; row < numRows; row++ {
 		for col := 0; col < numCols; col++ {
 			startX := i.Bounds().Min.X + col*c.blockSize
 			startY := i.Bounds().Min.Y + row*c.blockSize
-			blocks := make([]ludecomp.Vector, 3)
+			blocks := make([]linalg.Vector, 3)
 			for i := range blocks {
-				blocks[i] = make(ludecomp.Vector, c.blockSize*c.blockSize)
+				blocks[i] = make(linalg.Vector, c.blockSize*c.blockSize)
 			}
 			for y := 0; y < c.blockSize; y++ {
 				if y+startY >= i.Bounds().Max.Y {

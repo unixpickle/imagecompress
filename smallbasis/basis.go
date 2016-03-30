@@ -3,13 +3,13 @@ package smallbasis
 import (
 	"math"
 
-	"github.com/unixpickle/num-analysis/ludecomp"
+	"github.com/unixpickle/num-analysis/linalg"
 )
 
 // BasisMatrix generates a column matrix for
 // the standard image basis elements.
-func BasisMatrix(size int) *ludecomp.Matrix {
-	res := ludecomp.NewMatrix(size)
+func BasisMatrix(size int) *linalg.Matrix {
+	res := linalg.NewMatrix(size, size)
 	for i := 0; i < size/2; i++ {
 		freq := float64(i+1) * 2 * math.Pi / float64(size)
 		for j := 0; j < size; j++ {
@@ -38,9 +38,9 @@ func BasisMatrix(size int) *ludecomp.Matrix {
 // assuming that A has orthogonal columns, and then
 // generating a new orthogonal matrix [A -A; A A].
 // As a base case, OrthoBasis(1) is the 1x1 identity.
-func OrthoBasis(size int) *ludecomp.Matrix {
+func OrthoBasis(size int) *linalg.Matrix {
 	if size == 1 {
-		res := ludecomp.NewMatrix(1)
+		res := linalg.NewMatrix(1, 1)
 		res.Set(0, 0, 1)
 		return res
 	}
@@ -51,7 +51,7 @@ func OrthoBasis(size int) *ludecomp.Matrix {
 	}
 	subMatrix := OrthoBasis(half)
 
-	res := ludecomp.NewMatrix(size)
+	res := linalg.NewMatrix(size, size)
 	for i := 0; i < half; i++ {
 		for j := 0; j < half; j++ {
 			e := subMatrix.Get(i, j)
@@ -65,14 +65,14 @@ func OrthoBasis(size int) *ludecomp.Matrix {
 	return res
 }
 
-func normalizeColumns(m *ludecomp.Matrix) {
-	vec := make(ludecomp.Vector, m.N)
-	for col := 0; col < m.N; col++ {
-		for row := 0; row < m.N; row++ {
+func normalizeColumns(m *linalg.Matrix) {
+	vec := make(linalg.Vector, m.Rows)
+	for col := 0; col < m.Rows; col++ {
+		for row := 0; row < m.Rows; row++ {
 			vec[row] = m.Get(row, col)
 		}
 		invMag := 1.0 / math.Sqrt(vec.Dot(vec))
-		for row := 0; row < m.N; row++ {
+		for row := 0; row < m.Rows; row++ {
 			m.Set(row, col, vec[row]*invMag)
 		}
 	}
