@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/unixpickle/imagecompress/pcaprune"
 	"github.com/unixpickle/imagecompress/smallbasis"
 )
 
@@ -25,6 +26,9 @@ var Compressors = map[string]CompressorGen{
 	},
 	"ortho16": func(q float64) Compressor {
 		return smallbasis.NewCompressorBasis(q, 16, smallbasis.OrthoBasis(16*16))
+	},
+	"pcaprune": func(q float64) Compressor {
+		return pcaprune.NewCompressor(q)
 	},
 }
 
@@ -104,7 +108,8 @@ func dieUsage() {
 		"       %s <decompress> <compressor> <in> <out.png>\n\n"+
 		"Compressors:\n"+
 		" smallbasis       algebraic basis pruning\n"+
-		" ortho16          prune a recursive orthogonal basis\n",
+		" ortho16          prune a recursive orthogonal basis\n"+
+		" pcaprune         use PCA to reduce dimensionality\n",
 		os.Args[0], os.Args[0])
 	os.Exit(1)
 }

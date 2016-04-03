@@ -28,7 +28,7 @@ func newPCAReducer(vecs []linalg.Vector, basisSize int) (*pcaReducer, error) {
 			normalMat.Set(j, i, s.Sum())
 		}
 	}
-	vals, vecs, err := eigen.InverseIteration(normalMat, 10000)
+	vals, vecs, err := eigen.InverseIterationPrec(normalMat, 100000, 1e-6)
 	if err != nil {
 		return nil, err
 	}

@@ -121,7 +121,7 @@ func (c *Compressor) Decompress(b []byte) (image.Image, error) {
 			if val, err := r.ReadByte(); err != nil {
 				return nil, errors.New("failed to read data: " + err.Error())
 			} else {
-				num := ((float64(val) / 255.0) * (minValue - maxValue)) - minValue
+				num := ((float64(val) / 255.0) * (maxValue - minValue)) + minValue
 				reducedBlock[j] = num
 			}
 		}
