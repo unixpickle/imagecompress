@@ -3,10 +3,10 @@ package smallbasis
 import (
 	"errors"
 	"image"
-	"image/color"
 	"math"
 	"sort"
 
+	"github.com/unixpickle/imagecompress/blocks"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/num-analysis/linalg/cholesky"
 	"github.com/unixpickle/num-analysis/linalg/ludecomp"
@@ -68,7 +68,7 @@ func NewCompressor(quality float64) *Compressor {
 // Compress compresses an image and returns binary data
 // representing the result.
 func (c *Compressor) Compress(i image.Image) []byte {
-	blocks := c.blocksInImage(i)
+	blocks := blocks.Blocks(i, c.blockSize)
 	r := &RankedVectors{
 		BasisIndices: make([]int, c.blockSize*c.blockSize),
 		CoeffTotal:   make([]float64, c.blockSize*c.blockSize),
@@ -124,16 +124,16 @@ func (c *Compressor) Decompress(d []byte) (image.Image, error) {
 
 	basisVectors := c.basisVectors(ci.UsedBasis)
 
-	blocks := make([][]float64, len(ci.Blocks))
+	blockList := make([]linalg.Vector, len(ci.Blocks))
 	for i, encodedBlock := range ci.Blocks {
 		if len(basisVectors) > 0 {
-			blocks[i] = linearCombination(basisVectors, encodedBlock)
+			blockList[i] = linalg.Vector(linearCombination(basisVectors, encodedBlock))
 		} else {
-			blocks[i] = make([]float64, c.blockSize*c.blockSize)
+			blockList[i] = make(linalg.Vector, c.blockSize*c.blockSize)
 		}
 	}
 
-	return c.blocksToImage(ci.Width, ci.Height, blocks), nil
+	return blocks.Image(ci.Width, ci.Height, blockList, c.blockSize), nil
 }
 
 func (c *Compressor) basisVectors(indices []int) []linalg.Vector {
@@ -183,101 +183,6 @@ func (c *Compressor) projectionBlocks(basis, blocks []linalg.Vector) [][]float64
 	}
 
 	return res
-}
-
-func (c *Compressor) blocksInImage(i image.Image) []linalg.Vector {
-	numRows, numCols := c.blockCounts(i.Bounds())
-
-	res := make([]linalg.Vector, 0, 3*numRows*numCols)
-	for row := 0; row < numRows; row++ {
-		for col := 0; col < numCols; col++ {
-			startX := i.Bounds().Min.X + col*c.blockSize
-			startY := i.Bounds().Min.Y + row*c.blockSize
-			blocks := make([]linalg.Vector, 3)
-			for i := range blocks {
-				blocks[i] = make(linalg.Vector, c.blockSize*c.blockSize)
-			}
-			for y := 0; y < c.blockSize; y++ {
-				if y+startY >= i.Bounds().Max.Y {
-					continue
-				}
-				for x := 0; x < c.blockSize; x++ {
-					if x+startX >= i.Bounds().Max.X {
-						continue
-					}
-					px := i.At(x+startX, y+startY)
-					r, g, b, _ := px.RGBA()
-					idx := y * c.blockSize
-					if y%2 == 0 {
-						idx += x
-					} else {
-						idx += c.blockSize - (x + 1)
-					}
-					blocks[0][idx] = float64(r) / 0xffff
-					blocks[1][idx] = float64(g) / 0xffff
-					blocks[2][idx] = float64(b) / 0xffff
-				}
-			}
-			res = append(res, blocks...)
-		}
-	}
-
-	return res
-}
-
-func (c *Compressor) blocksToImage(w, h int, blocks [][]float64) image.Image {
-	res := image.NewRGBA(image.Rect(0, 0, w, h))
-	rows, cols := c.blockCounts(res.Bounds())
-
-	blockIdx := 0
-	for row := 0; row < rows; row++ {
-		for col := 0; col < cols; col++ {
-			colorBlocks := blocks[blockIdx : blockIdx+3]
-			blockIdx += 3
-			for y := 0; y < c.blockSize; y++ {
-				if y+row*c.blockSize >= h {
-					continue
-				}
-				for x := 0; x < c.blockSize; x++ {
-					if x+col*c.blockSize >= w {
-						continue
-					}
-					pxIdx := y * c.blockSize
-					if y%2 == 0 {
-						pxIdx += x
-					} else {
-						pxIdx += c.blockSize - (x + 1)
-					}
-					rVal := math.Min(math.Max(colorBlocks[0][pxIdx], 0), 1)
-					gVal := math.Min(math.Max(colorBlocks[1][pxIdx], 0), 1)
-					bVal := math.Min(math.Max(colorBlocks[2][pxIdx], 0), 1)
-					px := color.RGBA{
-						R: uint8(rVal * 0xff),
-						G: uint8(gVal * 0xff),
-						B: uint8(bVal * 0xff),
-						A: 0xff,
-					}
-					res.Set(x+col*c.blockSize, y+row*c.blockSize, px)
-				}
-			}
-		}
-	}
-
-	return res
-}
-
-func (c *Compressor) blockCounts(bounds image.Rectangle) (rows, cols int) {
-	cols = bounds.Dx() / c.blockSize
-	if bounds.Dx()%c.blockSize != 0 {
-		cols++
-	}
-
-	rows = bounds.Dy() / c.blockSize
-	if bounds.Dy()%c.blockSize != 0 {
-		rows++
-	}
-
-	return
 }
 
 type RankedVectors struct {
