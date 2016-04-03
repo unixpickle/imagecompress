@@ -1,6 +1,8 @@
 package pca
 
 import (
+	"encoding/binary"
+	"io"
 	"sort"
 
 	"github.com/unixpickle/num-analysis/kahan"
@@ -44,6 +46,30 @@ func newPCAReducer(vecs []linalg.Vector, basisSize int) (*pcaReducer, error) {
 
 func (p *pcaReducer) Reduce(vec linalg.Vector) linalg.Vector {
 	return p.solver.Solve(vec)
+}
+
+func (p *pcaReducer) WriteTo(w io.Writer) (int64, error) {
+	var written int64
+
+	if err := binary.Write(w, encodingEndian, uint32(len(p.basis))); err != nil {
+		return written, err
+	}
+	written += 4
+
+	if err := binary.Write(w, encodingEndian, uint32(len(p.basis[0]))); err != nil {
+		return written, err
+	}
+	written += 4
+
+	for _, vec := range p.basis {
+		for _, val := range vec {
+			if err := binary.Write(w, encodingEndian, float32(val)); err != nil {
+				return written, err
+			}
+			written += 4
+		}
+	}
+	return written, nil
 }
 
 func matrixWithColumns(c []linalg.Vector) *linalg.Matrix {
