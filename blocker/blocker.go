@@ -1,4 +1,4 @@
-package blocks
+package blocker
 
 import (
 	"image"
@@ -97,6 +97,13 @@ func Image(w, h int, blocks []linalg.Vector, blockSize int) image.Image {
 	}
 
 	return res
+}
+
+// Count returns the number of blocks needed to
+// encode an image of the given dimensions.
+func Count(b image.Rectangle, blockSize int) int {
+	rows, cols := blockCounts(b, blockSize)
+	return rows * cols * 3
 }
 
 func blockCounts(bounds image.Rectangle, blockSize int) (rows, cols int) {

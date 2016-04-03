@@ -1,4 +1,4 @@
-package pca
+package pcaprune
 
 import (
 	"encoding/binary"

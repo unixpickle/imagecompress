@@ -2,6 +2,7 @@ package pcaprune
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"github.com/unixpickle/num-analysis/linalg"
@@ -20,9 +21,13 @@ func readPCAExpander(r io.Reader) (*pcaExpander, error) {
 		return nil, err
 	}
 
+	if count == 0 || dimension == 0 {
+		return nil, errors.New("basis must not be empty")
+	}
+
 	res := &pcaExpander{basis: make([]linalg.Vector, count)}
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < int(count); i++ {
 		vec := make(linalg.Vector, dimension)
 		for j := 0; j < int(dimension); j++ {
 			var val float32

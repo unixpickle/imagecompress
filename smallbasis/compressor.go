@@ -6,7 +6,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/unixpickle/imagecompress/blocks"
+	"github.com/unixpickle/imagecompress/blocker"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/num-analysis/linalg/cholesky"
 	"github.com/unixpickle/num-analysis/linalg/ludecomp"
@@ -68,7 +68,7 @@ func NewCompressor(quality float64) *Compressor {
 // Compress compresses an image and returns binary data
 // representing the result.
 func (c *Compressor) Compress(i image.Image) []byte {
-	blocks := blocks.Blocks(i, c.blockSize)
+	blocks := blocker.Blocks(i, c.blockSize)
 	r := &RankedVectors{
 		BasisIndices: make([]int, c.blockSize*c.blockSize),
 		CoeffTotal:   make([]float64, c.blockSize*c.blockSize),
@@ -133,7 +133,7 @@ func (c *Compressor) Decompress(d []byte) (image.Image, error) {
 		}
 	}
 
-	return blocks.Image(ci.Width, ci.Height, blockList, c.blockSize), nil
+	return blocker.Image(ci.Width, ci.Height, blockList, c.blockSize), nil
 }
 
 func (c *Compressor) basisVectors(indices []int) []linalg.Vector {
