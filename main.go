@@ -104,7 +104,7 @@ func dieUsage() {
 		"       %s <decompress> <compressor> <in> <out.png>\n\n"+
 		"Compressors:\n"+
 		" smallbasis       algebraic basis pruning\n"+
-		" ortho16          prune a recursive orthogonal basis",
+		" ortho16          prune a recursive orthogonal basis\n",
 		os.Args[0], os.Args[0])
 	os.Exit(1)
 }
