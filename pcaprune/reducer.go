@@ -46,18 +46,6 @@ func (p *pcaReducer) Reduce(vec linalg.Vector) linalg.Vector {
 	return p.solver.Solve(vec)
 }
 
-type pcaExpander struct {
-	basis []linalg.Vector
-}
-
-func (p *pcaExpander) Expand(vec linalg.Vector) linalg.Vector {
-	res := make(linalg.Vector, len(p.basis[0]))
-	for i, x := range vec {
-		res.Add(p.basis[i].Copy().Scale(x))
-	}
-	return res
-}
-
 func matrixWithColumns(c []linalg.Vector) *linalg.Matrix {
 	res := linalg.NewMatrix(len(c[0]), len(c))
 	for i := 0; i < res.Rows; i++ {
