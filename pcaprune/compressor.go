@@ -47,10 +47,7 @@ func (c *Compressor) Compress(i image.Image) []byte {
 	binary.Write(&w, encodingEndian, uint32(i.Bounds().Dy()))
 
 	imageBlocks := blocker.Blocks(i, c.blockSize)
-	reducer, err := newPCAReducer(imageBlocks, c.basisSize)
-	if err != nil {
-		panic(err)
-	}
+	reducer := newPCAReducer(imageBlocks, c.basisSize)
 
 	reducer.WriteTo(&w)
 

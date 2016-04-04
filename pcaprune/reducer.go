@@ -11,12 +11,14 @@ import (
 	"github.com/unixpickle/num-analysis/linalg/leastsquares"
 )
 
+const maxEigenPrecision = 1e-6
+
 type pcaReducer struct {
 	solver *leastsquares.Solver
 	basis  []linalg.Vector
 }
 
-func newPCAReducer(vecs []linalg.Vector, basisSize int) (*pcaReducer, error) {
+func newPCAReducer(vecs []linalg.Vector, basisSize int) *pcaReducer {
 	normalMat := linalg.NewMatrix(len(vecs[0]), len(vecs[0]))
 	for i := 0; i < normalMat.Rows; i++ {
 		for j := 0; j <= i; j++ {
@@ -28,10 +30,7 @@ func newPCAReducer(vecs []linalg.Vector, basisSize int) (*pcaReducer, error) {
 			normalMat.Set(j, i, s.Sum())
 		}
 	}
-	vals, vecs, err := eigen.InverseIterationPrec(normalMat, 100000, 1e-6)
-	if err != nil {
-		return nil, err
-	}
+	vals, vecs := eigs(normalMat)
 	sorter := &eigenSorter{vals: vals, vecs: vecs}
 	sort.Sort(sorter)
 
@@ -41,7 +40,7 @@ func newPCAReducer(vecs []linalg.Vector, basisSize int) (*pcaReducer, error) {
 	copy(res.basis, vecs)
 	res.solver = leastsquares.NewSolver(matrixWithColumns(res.basis))
 
-	return res, nil
+	return res
 }
 
 func (p *pcaReducer) Reduce(vec linalg.Vector) linalg.Vector {
@@ -70,6 +69,38 @@ func (p *pcaReducer) WriteTo(w io.Writer) (int64, error) {
 		}
 	}
 	return written, nil
+}
+
+func eigs(m *linalg.Matrix) ([]float64, []linalg.Vector) {
+	// If we can get the answer up to maxEigenPrecision, it's good enough.
+	// On the other hand, if we cannot, then we will have to wait until
+	// the most accurate possible solution is found.
+	res1 := eigen.SymmetricPrecAsync(m, maxEigenPrecision)
+	res2 := eigen.SymmetricAsync(m)
+
+	vals1 := make([]float64, 0, m.Rows)
+	vals2 := make([]float64, 0, m.Rows)
+	vecs1 := make([]linalg.Vector, 0, m.Rows)
+	vecs2 := make([]linalg.Vector, 0, m.Rows)
+
+	for {
+		select {
+		case val, ok := <-res1.Values:
+			if !ok {
+				close(res2.Cancel)
+				return vals1, vecs1
+			}
+			vals1 = append(vals1, val)
+			vecs1 = append(vecs1, <-res1.Vectors)
+		case val, ok := <-res2.Values:
+			if !ok {
+				close(res1.Cancel)
+				return vals2, vecs2
+			}
+			vals2 = append(vals2, val)
+			vecs2 = append(vecs2, <-res2.Vectors)
+		}
+	}
 }
 
 func matrixWithColumns(c []linalg.Vector) *linalg.Matrix {
